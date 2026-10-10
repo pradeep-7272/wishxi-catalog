@@ -1,5 +1,5 @@
 'use client';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
 import { img } from '../../lib/sanity';
 
@@ -18,7 +18,7 @@ const inr = (n) => '₹' + Number(n).toLocaleString('en-IN');
 function Select({ label, value, onChange, options }) {
   return (
     <select aria-label={label} value={value} onChange={(e) => onChange(e.target.value)}
-      className="rounded-lg border border-line bg-white px-3 py-2 text-sm">
+      className="w-full rounded-lg border border-line bg-white px-2.5 py-1.5 text-sm sm:w-auto">
       <option value="">{label}</option>
       {options.map((o) => <option key={o}>{o}</option>)}
     </select>
@@ -31,7 +31,23 @@ export default function Catalog({ jerseys }) {
   const [inStock, setInStock] = useState(false);
   const [sort, setSort] = useState('new');
   const [open, setOpen] = useState(null);
+  const [showFilters, setShowFilters] = useState(false);
+  const [hidden, setHidden] = useState(false);
   const set = (k) => (v) => setF((p) => ({ ...p, [k]: v }));
+  const activeCount = Object.values(f).filter(Boolean).length + (inStock ? 1 : 0);
+
+  // Hide the sticky bar while scrolling down, bring it back on scroll up
+  useEffect(() => {
+    let last = window.scrollY;
+    const onScroll = () => {
+      const y = window.scrollY;
+      if (Math.abs(y - last) < 8) return;
+      setHidden(y > last && y > 120);
+      last = y;
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
 
   const list = useMemo(() => {
     const t = q.trim().toLowerCase();
@@ -47,31 +63,40 @@ export default function Catalog({ jerseys }) {
 
   return (
     <main className="mx-auto max-w-6xl px-4 pb-20">
-      <header className="flex items-end justify-between py-8">
-        <div>
-          <h1 className="text-3xl font-extrabold tracking-tight">WishXI</h1>
-          <p className="mt-1 text-sm text-mute">Pick a jersey, order on WhatsApp.</p>
-        </div>
-        <p className="text-sm text-mute">{list.length} jerseys</p>
+      <header className="flex items-baseline justify-between py-3">
+        <h1 className="text-xl font-extrabold tracking-tight">WishXI</h1>
+        <p className="text-xs text-mute">{list.length} jerseys</p>
       </header>
 
-      <div className="sticky top-0 z-10 -mx-4 space-y-3 border-b border-line bg-paper/95 px-4 py-3 backdrop-blur">
-        <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search by jersey or club"
-          className="w-full rounded-lg border border-line bg-white px-4 py-2.5 text-sm" />
-        <div className="flex flex-wrap items-center gap-2">
-          <Select label="Club" value={f.club} onChange={set('club')} options={uniq(jerseys, 'club')} />
-          <Select label="Season" value={f.season} onChange={set('season')} options={uniq(jerseys, 'season').reverse()} />
-          <Select label="Type" value={f.type} onChange={set('type')} options={uniq(jerseys, 'type')} />
-          <Select label="Version" value={f.version} onChange={set('version')} options={uniq(jerseys, 'version')} />
-          <Select label="Size" value={f.size} onChange={set('size')} options={SIZES} />
-          <label className="flex items-center gap-2 px-1 text-sm">
-            <input type="checkbox" checked={inStock} onChange={(e) => setInStock(e.target.checked)} /> In stock only
-          </label>
+      <div className={`sticky top-0 z-10 -mx-4 border-b border-line bg-paper/95 px-4 py-2 backdrop-blur transition-transform duration-200 ${hidden && !showFilters ? '-translate-y-full' : ''}`}>
+        <div className="flex gap-2">
+          <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search jersey or club"
+            className="min-w-0 flex-1 rounded-lg border border-line bg-white px-3 py-1.5 text-sm" />
+          <button onClick={() => setShowFilters((v) => !v)} aria-expanded={showFilters}
+            className="rounded-lg border border-line bg-white px-3 py-1.5 text-sm font-semibold">
+            Filters{activeCount > 0 && ` (${activeCount})`}
+          </button>
           <select aria-label="Sort" value={sort} onChange={(e) => setSort(e.target.value)}
-            className="ml-auto rounded-lg border border-line bg-white px-3 py-2 text-sm">
+            className="w-28 rounded-lg border border-line bg-white px-2 py-1.5 text-sm sm:w-auto">
             {Object.entries(SORTS).map(([k, [l]]) => <option key={k} value={k}>{l}</option>)}
           </select>
         </div>
+
+        {showFilters && (
+          <div className="mt-2 grid grid-cols-2 items-center gap-2 sm:flex sm:flex-wrap">
+            <Select label="Club" value={f.club} onChange={set('club')} options={uniq(jerseys, 'club')} />
+            <Select label="Season" value={f.season} onChange={set('season')} options={uniq(jerseys, 'season').reverse()} />
+            <Select label="Type" value={f.type} onChange={set('type')} options={uniq(jerseys, 'type')} />
+            <Select label="Version" value={f.version} onChange={set('version')} options={uniq(jerseys, 'version')} />
+            <Select label="Size" value={f.size} onChange={set('size')} options={SIZES} />
+            <label className="flex items-center gap-2 px-1 text-sm">
+              <input type="checkbox" checked={inStock} onChange={(e) => setInStock(e.target.checked)} /> In stock only
+            </label>
+            {activeCount > 0 && (
+              <button onClick={reset} className="col-span-2 text-left text-sm text-brand underline sm:col-span-1">Clear all</button>
+            )}
+          </div>
+        )}
       </div>
 
       {list.length === 0 ? (
@@ -80,7 +105,7 @@ export default function Catalog({ jerseys }) {
           <button onClick={reset} className="mt-3 text-sm text-brand underline">Clear filters</button>
         </div>
       ) : (
-        <ul className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+        <ul className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
           {list.map((j) => (
             <li key={j._id}>
               <button onClick={() => setOpen(j)} className="group w-full text-left">
