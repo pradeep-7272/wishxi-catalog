@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import Image from 'next/image';
 import { img } from '../../lib/sanity';
 
@@ -32,22 +32,8 @@ export default function Catalog({ jerseys }) {
   const [sort, setSort] = useState('new');
   const [open, setOpen] = useState(null);
   const [showFilters, setShowFilters] = useState(false);
-  const [hidden, setHidden] = useState(false);
   const set = (k) => (v) => setF((p) => ({ ...p, [k]: v }));
   const activeCount = Object.values(f).filter(Boolean).length + (inStock ? 1 : 0);
-
-  // Hide the sticky bar while scrolling down, bring it back on scroll up
-  useEffect(() => {
-    let last = window.scrollY;
-    const onScroll = () => {
-      const y = window.scrollY;
-      if (Math.abs(y - last) < 8) return;
-      setHidden(y > last && y > 120);
-      last = y;
-    };
-    window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
-  }, []);
 
   const list = useMemo(() => {
     const t = q.trim().toLowerCase();
@@ -68,7 +54,7 @@ export default function Catalog({ jerseys }) {
         <p className="text-xs text-mute">{list.length} jerseys</p>
       </header>
 
-      <div className={`sticky top-0 z-10 -mx-4 border-b border-line bg-paper/95 px-4 py-2 backdrop-blur transition-transform duration-200 ${hidden && !showFilters ? '-translate-y-full' : ''}`}>
+      <div className="border-b border-line pb-3">
         <div className="flex gap-2">
           <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search jersey or club"
             className="min-w-0 flex-1 rounded-lg border border-line bg-white px-3 py-1.5 text-sm" />
@@ -139,11 +125,6 @@ function Detail({ j, onClose }) {
     `Hi WishXI, I'm interested in this jersey:\n${j.name}\n${[j.type, j.version].filter(Boolean).join(' / ')}\nSize: ${withSize || 'not selected'}\nPrice: ${inr(j.price)}\nLink: ${link}`;
 
   const buy = () => window.open(`https://wa.me/${PHONE}?text=${encodeURIComponent(message(size))}`, '_blank');
-  const share = async () => {
-    const text = `${j.name} - ${inr(j.price)} at WishXI\n${link}`;
-    if (navigator.share) { try { await navigator.share({ text }); return; } catch { return; } }
-    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
-  };
 
   return (
     <div className="fixed inset-0 z-20 flex items-end bg-black/40 sm:items-center sm:justify-center" onClick={onClose}>
@@ -192,7 +173,6 @@ function Detail({ j, onClose }) {
                 className="flex-1 rounded-lg bg-[#1FA855] py-3 text-sm font-bold text-white disabled:bg-line disabled:text-mute">
                 {sold ? 'Sold out' : size ? 'Buy on WhatsApp' : 'Select a size'}
               </button>
-              <button onClick={share} className="rounded-lg border border-line px-5 py-3 text-sm font-bold">Share</button>
             </div>
           </div>
         </div>
